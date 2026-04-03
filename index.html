@@ -176,8 +176,9 @@
     <div class="card">
       <h1>🚀 Pete Invaders</h1>
       <p>
-        Dra fingret över skärmen för att styra.<br>
-        Tryck på eldknappen för att skjuta.
+        Dra fingret i fältet längst ner för att styra.<br>
+        Tryck på eldknappen för att skjuta.<br>
+        Var fjärde nivå är en bossnivå.
       </p>
       <button id="startBtn">Starta spelet</button>
     </div>
@@ -227,11 +228,9 @@
     let leaderboardEnabled = false;
 
     try {
-      if (firebaseConfig.apiKey) {
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        leaderboardEnabled = true;
-      }
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      leaderboardEnabled = true;
     } catch (err) {
       console.error("Firebase kunde inte starta:", err);
     }
@@ -254,7 +253,7 @@
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      player.y = canvas.height - 110;
+      player.y = canvas.height - 170;
       player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
     }
     window.addEventListener("resize", resizeCanvas);
@@ -300,34 +299,42 @@
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-
       if (rampDown) {
         gain.gain.setValueAtTime(volume, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
       }
-
       osc.stop(audioCtx.currentTime + duration);
     }
 
     function playShootSound() {
       tone(880, 0.04, "square", 0.03);
-      setTimeout(() => tone(620, 0.03, "square", 0.02), 25);
+      setTimeout(() => tone(660, 0.03, "square", 0.02), 20);
     }
 
     function playEnemyHitSound() {
-      tone(180, 0.05, "sawtooth", 0.035);
-      setTimeout(() => tone(120, 0.06, "triangle", 0.025), 35);
+      tone(200, 0.05, "sawtooth", 0.035);
+      setTimeout(() => tone(140, 0.05, "triangle", 0.025), 30);
     }
 
     function playPlayerHitSound() {
       tone(240, 0.08, "square", 0.05);
-      setTimeout(() => tone(120, 0.12, "sawtooth", 0.04), 40);
+      setTimeout(() => tone(120, 0.14, "sawtooth", 0.04), 40);
     }
 
     function playGameOverSound() {
       tone(260, 0.10, "triangle", 0.05);
       setTimeout(() => tone(190, 0.12, "triangle", 0.05), 120);
       setTimeout(() => tone(130, 0.20, "sawtooth", 0.05), 260);
+    }
+
+    function playBossHitSound() {
+      tone(110, 0.08, "sawtooth", 0.05);
+      setTimeout(() => tone(90, 0.06, "square", 0.03), 40);
+    }
+
+    function playBossShootSound() {
+      tone(320, 0.10, "square", 0.04);
+      setTimeout(() => tone(280, 0.08, "square", 0.03), 35);
     }
 
     let musicTimer = null;
@@ -347,8 +354,9 @@
     let lives = 3;
     let level = 1;
     let fireCooldown = 0;
-    let bombCooldown = 70;
+    let bombCooldown = 110;
     let hitFlash = 0;
+    let bossShotCooldown = 90;
 
     const player = {
       x: 160,
@@ -362,6 +370,8 @@
     let enemies = [];
     let bombs = [];
     let stars = [];
+    let boss = null;
+    let inBossLevel = false;
 
     const enemyChoices = ["👾", "🛸", "🤖", "🐙", "💜", "💚", "💙", "❤️", "🌈"];
 
@@ -376,17 +386,35 @@
 
     function createWave() {
       enemies = [];
+      boss = null;
+      inBossLevel = level % 4 === 0;
 
-      const cols = 8;
-      const rows = 5;
-      const size = 30;
+      if (inBossLevel) {
+        const size = 90;
+        boss = {
+          x: canvas.width / 2 - size / 2,
+          y: 90,
+          w: size,
+          h: size,
+          emoji: "👹",
+          dx: Math.min(1.2 + level * 0.06, 2.0),
+          hp: level * 2,
+          maxHp: level * 2
+        };
+        bossShotCooldown = Math.max(70, 125 - level * 4);
+        return;
+      }
+
+      const cols = 7;
+      const rows = 4;
+      const size = 28;
       const gapX = 10;
-      const gapY = 11;
+      const gapY = 10;
       const totalWidth = cols * size + (cols - 1) * gapX;
       const startX = Math.max(12, (canvas.width - totalWidth) / 2);
       const startY = 92;
 
-      const baseSpeed = Math.min(1.05 + (level - 1) * 0.15, 2.8);
+      const baseSpeed = Math.min(0.78 + (level - 1) * 0.10, 1.9);
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -412,23 +440,41 @@
         y: player.y + 2,
         w: 4,
         h: 14,
-        speed: 8.6
+        speed: 8.2
       });
 
-      fireCooldown = 8;
+      fireCooldown = 9;
     }
 
     function dropBomb() {
       if (enemies.length === 0) return;
-
       const shooter = enemies[Math.floor(Math.random() * enemies.length)];
       bombs.push({
         x: shooter.x + shooter.size / 2 - 4,
         y: shooter.y + shooter.size - 2,
         w: 8,
         h: 16,
-        speed: Math.min(2.4 + level * 0.28, 6.2)
+        speed: Math.min(2.0 + level * 0.18, 4.2),
+        type: "enemy"
       });
+    }
+
+    function bossShoot() {
+      if (!boss) return;
+      playBossShootSound();
+      const shotCount = 3;
+      const spacing = 16;
+      for (let i = 0; i < shotCount; i++) {
+        const offset = (i - 1) * spacing;
+        bombs.push({
+          x: boss.x + boss.w / 2 + offset - 4,
+          y: boss.y + boss.h - 6,
+          w: 9,
+          h: 18,
+          speed: Math.min(2.6 + level * 0.18, 5.5),
+          type: "boss"
+        });
+      }
     }
 
     function movePlayerToTouch(touchX) {
@@ -533,9 +579,7 @@
             limit(10)
           );
           const snap = await getDocs(q);
-          snap.forEach((doc) => {
-            entries.push(doc.data());
-          });
+          snap.forEach((doc) => entries.push(doc.data()));
         } else {
           entries = [{ name: "Firebase saknas", score: 0 }];
         }
@@ -563,7 +607,6 @@
       lives--;
       hitFlash = 1;
       playPlayerHitSound();
-      bombs = bombs.filter(b => b.y < canvas.height + 30);
 
       if (lives <= 0) {
         endGame();
@@ -576,8 +619,8 @@
       if (fireCooldown > 0) fireCooldown--;
       if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - 0.08);
 
-      if (moveLeft) player.x -= 5.6;
-      if (moveRight) player.x += 5.6;
+      if (moveLeft) player.x -= 5;
+      if (moveRight) player.x += 5;
       player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
 
       for (let i = bullets.length - 1; i >= 0; i--) {
@@ -587,7 +630,6 @@
 
       for (let i = bombs.length - 1; i >= 0; i--) {
         bombs[i].y += bombs[i].speed;
-
         const b = bombs[i];
         const hitPlayer =
           b.x < player.x + player.w &&
@@ -612,34 +654,20 @@
         }
       }
 
-      let hitEdge = false;
-      for (const enemy of enemies) {
-        enemy.x += enemy.dx;
-        if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) hitEdge = true;
-      }
-
-      if (hitEdge) {
-        for (const enemy of enemies) {
-          enemy.dx *= -1;
-          enemy.y += 14;
+      if (boss) {
+        boss.x += boss.dx;
+        if (boss.x <= 8 || boss.x + boss.w >= canvas.width - 8) {
+          boss.dx *= -1;
+          boss.y += 8;
         }
-      }
 
-      bombCooldown--;
-      if (bombCooldown <= 0) {
-        dropBomb();
-        if (level >= 3 && Math.random() < 0.25) dropBomb();
-        if (level >= 5 && Math.random() < 0.22) dropBomb();
+        bossShotCooldown--;
+        if (bossShotCooldown <= 0) {
+          bossShoot();
+          bossShotCooldown = Math.max(55, 95 - level * 2);
+        }
 
-        const minDelay = Math.max(12, 72 - level * 5);
-        const maxDelay = Math.max(28, 118 - level * 6);
-        bombCooldown = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-      }
-
-      for (let ei = enemies.length - 1; ei >= 0; ei--) {
-        const enemy = enemies[ei];
-
-        if (enemy.y + enemy.size >= player.y + 8) {
+        if (boss.y + boss.h >= player.y + 8) {
           lives = 0;
           endGame();
           return;
@@ -648,23 +676,78 @@
         for (let bi = bullets.length - 1; bi >= 0; bi--) {
           const b = bullets[bi];
           if (
-            b.x < enemy.x + enemy.size &&
-            b.x + b.w > enemy.x &&
-            b.y < enemy.y + enemy.size &&
-            b.y + b.h > enemy.y
+            b.x < boss.x + boss.w &&
+            b.x + b.w > boss.x &&
+            b.y < boss.y + boss.h &&
+            b.y + b.h > boss.y
           ) {
-            playEnemyHitSound();
             bullets.splice(bi, 1);
-            enemies.splice(ei, 1);
-            score += 10;
-            break;
+            boss.hp--;
+            playBossHitSound();
+
+            if (boss.hp <= 0) {
+              score += 150 + level * 20;
+              boss = null;
+              level++;
+              createWave();
+              break;
+            }
           }
         }
-      }
+      } else {
+        let hitEdge = false;
+        for (const enemy of enemies) {
+          enemy.x += enemy.dx;
+          if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) hitEdge = true;
+        }
 
-      if (enemies.length === 0) {
-        level++;
-        createWave();
+        if (hitEdge) {
+          for (const enemy of enemies) {
+            enemy.dx *= -1;
+            enemy.y += 12;
+          }
+        }
+
+        bombCooldown--;
+        if (bombCooldown <= 0) {
+          dropBomb();
+          if (level >= 5 && Math.random() < 0.15) dropBomb();
+
+          const minDelay = Math.max(35, 115 - level * 5);
+          const maxDelay = Math.max(70, 170 - level * 6);
+          bombCooldown = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+        }
+
+        for (let ei = enemies.length - 1; ei >= 0; ei--) {
+          const enemy = enemies[ei];
+
+          if (enemy.y + enemy.size >= player.y + 8) {
+            lives = 0;
+            endGame();
+            return;
+          }
+
+          for (let bi = bullets.length - 1; bi >= 0; bi--) {
+            const b = bullets[bi];
+            if (
+              b.x < enemy.x + enemy.size &&
+              b.x + b.w > enemy.x &&
+              b.y < enemy.y + enemy.size &&
+              b.y + b.h > enemy.y
+            ) {
+              playEnemyHitSound();
+              bullets.splice(bi, 1);
+              enemies.splice(ei, 1);
+              score += 10;
+              break;
+            }
+          }
+        }
+
+        if (enemies.length === 0) {
+          level++;
+          createWave();
+        }
       }
     }
 
@@ -678,6 +761,35 @@
       for (let i = 0; i < lives; i++) {
         ctx.fillText(icon, startX + i * spacing, 20);
       }
+    }
+
+    function drawControlArea() {
+      const h = 72;
+      const y = canvas.height - h;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(0, y, canvas.width, h);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "18px 'Press Start 2P'";
+      ctx.fillText("←  →", canvas.width / 2, y + h / 2 + 2);
+    }
+
+    function drawBossHp() {
+      if (!boss) return;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.font = "12px 'Press Start 2P'";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(`${boss.hp} träffar kvar`, boss.x + boss.w / 2, boss.y - 24);
     }
 
     function draw() {
@@ -704,11 +816,13 @@
       ctx.fillText(`LEVEL ${level}`, 16, 22);
 
       ctx.textAlign = "center";
-      ctx.font = "18px 'Press Start 2P'";
+      ctx.font = "22px 'Press Start 2P'";
       ctx.fillStyle = "#fff7b7";
-      ctx.fillText(`${score}`, canvas.width / 2, 20);
+      ctx.fillText(`${score}`, canvas.width / 2, 18);
 
       drawLives();
+
+      drawControlArea();
 
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
@@ -720,16 +834,22 @@
         ctx.fillRect(b.x, b.y, b.w, b.h);
       }
 
-      ctx.fillStyle = "#ff5f57";
       for (const bomb of bombs) {
+        ctx.fillStyle = bomb.type === "boss" ? "#ff2e88" : "#ff5f57";
         ctx.beginPath();
-        ctx.arc(bomb.x + bomb.w / 2, bomb.y + bomb.h / 2, 5, 0, Math.PI * 2);
+        ctx.arc(bomb.x + bomb.w / 2, bomb.y + bomb.h / 2, bomb.type === "boss" ? 6 : 5, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      for (const enemy of enemies) {
-        ctx.font = `${enemy.size}px serif`;
-        ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+      if (boss) {
+        ctx.font = `${boss.h}px serif`;
+        ctx.fillText(boss.emoji, boss.x, boss.y);
+        drawBossHp();
+      } else {
+        for (const enemy of enemies) {
+          ctx.font = `${enemy.size}px serif`;
+          ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+        }
       }
 
       if (hitFlash > 0) {
