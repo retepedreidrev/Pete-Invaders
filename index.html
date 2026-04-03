@@ -213,22 +213,21 @@
       limit
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    firebaseConfig = {
-    apiKey: "AIzaSyD8i5oobi59aBoazNvLQcNelvSPn5ppB9U",
-    authDomain: "pete-invaders.firebaseapp.com",
-    projectId: "pete-invaders",
-    storageBucket: "pete-invaders.firebasestorage.app",
-    messagingSenderId: "974343532639",
-    appId: "1:974343532639:web:1e27c5b1662408aee32bea",
-    measurementId: "G-let leaderboardEnabled = false;
-    // === FYLL I DIN EGEN FIREBASE-KONFIG 
+    const firebaseConfig = {
+      apiKey: "AIzaSyD8i5oobi59aBoazNvLQcNelvSPn5ppB9U",
+      authDomain: "pete-invaders.firebaseapp.com",
+      projectId: "pete-invaders",
+      storageBucket: "pete-invaders.firebasestorage.app",
+      messagingSenderId: "974343532639",
+      appId: "1:974343532639:web:1e27c5b1662408aee32bea",
+      measurementId: "G-EDCYGK29M6"
+    };
 
     let db = null;
     let leaderboardEnabled = false;
 
     try {
-    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "BYT_UT") {
-
+      if (firebaseConfig.apiKey) {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         leaderboardEnabled = true;
@@ -256,11 +255,10 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       player.y = canvas.height - 110;
-      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
     }
     window.addEventListener("resize", resizeCanvas);
 
-    // Minska oönskad zoom
     let lastTouchEnd = 0;
     document.addEventListener("touchend", function (event) {
       const now = Date.now();
@@ -274,7 +272,6 @@
       if (e.scale && e.scale !== 1) e.preventDefault();
     }, { passive: false });
 
-    // Wake lock
     let wakeLock = null;
     async function requestWakeLock() {
       try {
@@ -292,7 +289,6 @@
       }
     });
 
-    // Ljud
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function tone(freq = 440, duration = 0.08, type = "square", volume = 0.03, rampDown = true) {
@@ -345,7 +341,6 @@
       }, 420);
     }
 
-    // Speldata
     let gameStarted = false;
     let gameIsOver = false;
     let score = 0;
@@ -437,28 +432,23 @@
     }
 
     function movePlayerToTouch(touchX) {
-      const playAreaRight = canvas.width - 110;
-      const clampedX = Math.max(0, Math.min(playAreaRight, touchX));
+      const clampedX = Math.max(0, Math.min(canvas.width, touchX));
       player.x = clampedX - player.w / 2;
-      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
     }
 
     canvas.addEventListener("touchstart", (e) => {
       if (!gameStarted || gameIsOver) return;
       const touch = e.touches[0];
-      if (touch.clientX < canvas.width - 110) {
-        e.preventDefault();
-        movePlayerToTouch(touch.clientX);
-      }
+      e.preventDefault();
+      movePlayerToTouch(touch.clientX);
     }, { passive: false });
 
     canvas.addEventListener("touchmove", (e) => {
       if (!gameStarted || gameIsOver) return;
       const touch = e.touches[0];
-      if (touch.clientX < canvas.width - 110) {
-        e.preventDefault();
-        movePlayerToTouch(touch.clientX);
-      }
+      e.preventDefault();
+      movePlayerToTouch(touch.clientX);
     }, { passive: false });
 
     shootBtn.addEventListener("touchstart", (e) => {
@@ -588,7 +578,7 @@
 
       if (moveLeft) player.x -= 5.6;
       if (moveRight) player.x += 5.6;
-      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
 
       for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed;
@@ -707,35 +697,29 @@
         ctx.fill();
       }
 
-      // Nivå vänster
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.fillStyle = "#ffffff";
       ctx.font = "12px 'Press Start 2P'";
       ctx.fillText(`LEVEL ${level}`, 16, 22);
 
-      // Poäng mitten
       ctx.textAlign = "center";
       ctx.font = "18px 'Press Start 2P'";
       ctx.fillStyle = "#fff7b7";
       ctx.fillText(`${score}`, canvas.width / 2, 20);
 
-      // Liv höger
       drawLives();
 
-      // Spelare
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.font = `${player.h}px serif`;
       ctx.fillText(player.emoji, player.x, player.y);
 
-      // Skott
       ctx.fillStyle = "#ffd95a";
       for (const b of bullets) {
         ctx.fillRect(b.x, b.y, b.w, b.h);
       }
 
-      // Bomber
       ctx.fillStyle = "#ff5f57";
       for (const bomb of bombs) {
         ctx.beginPath();
@@ -743,13 +727,11 @@
         ctx.fill();
       }
 
-      // Fiender
       for (const enemy of enemies) {
         ctx.font = `${enemy.size}px serif`;
         ctx.fillText(enemy.emoji, enemy.x, enemy.y);
       }
 
-      // Träff-flash
       if (hitFlash > 0) {
         ctx.fillStyle = `rgba(255,255,255,${hitFlash * 0.85})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -764,7 +746,7 @@
       playerNameInput.value = localStorage.getItem("peteInvadersName") || "";
       loadingText.textContent = leaderboardEnabled
         ? "Skriv namn och skicka poängen."
-        : "Fyll i Firebase-konfigurationen för global topplista.";
+        : "Aktivera Firestore för global topplista.";
       nameOverlay.style.display = "flex";
     }
 
