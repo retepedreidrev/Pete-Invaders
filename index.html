@@ -82,7 +82,7 @@
     }
 
     .card {
-      width: min(92vw, 520px);
+      width: min(92vw, 560px);
       background: rgba(10, 16, 30, 0.96);
       border: 2px solid rgba(255,255,255,0.14);
       border-radius: 18px;
@@ -148,15 +148,20 @@
     }
 
     #leaderboardList li {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
       padding: 10px 0;
       border-bottom: 1px solid rgba(255,255,255,0.08);
-      font-size: 10px;
+      font-size: 9px;
+      align-items: center;
     }
 
-    #leaderboardList li span:last-child {
+    #leaderboardList li span:nth-child(2) {
+      color: #98d6ff;
+    }
+
+    #leaderboardList li span:nth-child(3) {
       color: #ffe07a;
     }
 
@@ -176,9 +181,9 @@
     <div class="card">
       <h1>🚀 Pete Invaders</h1>
       <p>
-        Dra fingret i fältet längst ner för att styra.<br>
-        Tryck på eldknappen för att skjuta.<br>
-        Var fjärde nivå är en bossnivå.
+        Tryck eller dra i styrfältet längst ner för att styra.<br>
+        Skeppet åker mot din position med begränsad fart.<br>
+        Varje skott kostar 1 poäng.
       </p>
       <button id="startBtn">Starta spelet</button>
     </div>
@@ -208,10 +213,7 @@
       getFirestore,
       collection,
       addDoc,
-      getDocs,
-      query,
-      orderBy,
-      limit
+      getDocs
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -254,6 +256,7 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       player.y = canvas.height - 170;
+      player.targetX = Math.max(0, Math.min(canvas.width - player.w, player.targetX));
       player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
     }
     window.addEventListener("resize", resizeCanvas);
@@ -328,13 +331,14 @@
     }
 
     function playBossHitSound() {
-      tone(110, 0.08, "sawtooth", 0.05);
-      setTimeout(() => tone(90, 0.06, "square", 0.03), 40);
+      tone(110, 0.10, "sawtooth", 0.05);
+      setTimeout(() => tone(90, 0.08, "square", 0.03), 40);
     }
 
     function playBossShootSound() {
-      tone(320, 0.10, "square", 0.04);
-      setTimeout(() => tone(280, 0.08, "square", 0.03), 35);
+      tone(300, 0.08, "square", 0.04);
+      setTimeout(() => tone(260, 0.08, "square", 0.03), 30);
+      setTimeout(() => tone(220, 0.08, "square", 0.02), 60);
     }
 
     let musicTimer = null;
@@ -360,10 +364,12 @@
 
     const player = {
       x: 160,
+      targetX: 160,
       y: 500,
       w: 48,
       h: 48,
-      emoji: "😄"
+      emoji: "😄",
+      speed: 1.6
     };
 
     let bullets = [];
@@ -372,6 +378,7 @@
     let stars = [];
     let boss = null;
     let inBossLevel = false;
+    let currentEnemySpeed = 0.8;
 
     const enemyChoices = ["👾", "🛸", "🤖", "🐙", "💜", "💚", "💙", "❤️", "🌈"];
 
@@ -384,6 +391,18 @@
       });
     }
 
+    function normalSpeedForLevel(level) {
+      if (level <= 5) {
+        return 0.78 + (level - 1) * 0.10;
+      }
+      const speedAt5 = 0.78 + (5 - 1) * 0.10;
+      return speedAt5 * Math.pow(1.03, level - 5);
+    }
+
+    function bossHpForLevel(level) {
+      return Math.max(10, 8 + level * 2);
+    }
+
     function createWave() {
       enemies = [];
       boss = null;
@@ -391,17 +410,23 @@
 
       if (inBossLevel) {
         const size = 90;
+        currentEnemySpeed = Math.min(1.0 + level * 0.06, 2.2);
+
         boss = {
           x: canvas.width / 2 - size / 2,
           y: 90,
+          baseY: 90,
           w: size,
           h: size,
           emoji: "👹",
-          dx: Math.min(1.2 + level * 0.06, 2.0),
-          hp: level * 2,
-          maxHp: level * 2
+          dx: currentEnemySpeed,
+          dyPhase: 0,
+          hp: bossHpForLevel(level),
+          maxHp: bossHpForLevel(level)
         };
-        bossShotCooldown = Math.max(70, 125 - level * 4);
+
+        bossShotCooldown = Math.max(48, 84 - level * 2);
+        player.speed = currentEnemySpeed * 2;
         return;
       }
 
@@ -414,7 +439,8 @@
       const startX = Math.max(12, (canvas.width - totalWidth) / 2);
       const startY = 92;
 
-      const baseSpeed = Math.min(0.78 + (level - 1) * 0.10, 1.9);
+      currentEnemySpeed = Math.min(normalSpeedForLevel(level), 3.2);
+      player.speed = currentEnemySpeed * 2;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -422,7 +448,7 @@
             x: startX + col * (size + gapX),
             y: startY + row * (size + gapY),
             size,
-            dx: baseSpeed,
+            dx: currentEnemySpeed,
             emoji: enemyChoices[(row * cols + col) % enemyChoices.length]
           });
         }
@@ -432,7 +458,9 @@
     function shoot() {
       if (!gameStarted || gameIsOver) return;
       if (fireCooldown > 0) return;
+      if (score <= 0) return;
 
+      score -= 1;
       playShootSound();
 
       bullets.push({
@@ -462,40 +490,47 @@
     function bossShoot() {
       if (!boss) return;
       playBossShootSound();
-      const shotCount = 3;
+
+      const shotCount = 5;
       const spacing = 16;
+
       for (let i = 0; i < shotCount; i++) {
-        const offset = (i - 1) * spacing;
+        const offset = (i - (shotCount - 1) / 2) * spacing;
         bombs.push({
           x: boss.x + boss.w / 2 + offset - 4,
           y: boss.y + boss.h - 6,
           w: 9,
           h: 18,
-          speed: Math.min(2.6 + level * 0.18, 5.5),
+          speed: Math.min(2.8 + level * 0.18, 5.8),
           type: "boss"
         });
       }
     }
 
-    function movePlayerToTouch(touchX) {
+    function setPlayerTarget(touchX) {
       const clampedX = Math.max(0, Math.min(canvas.width, touchX));
-      player.x = clampedX - player.w / 2;
-      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+      player.targetX = clampedX - player.w / 2;
+      player.targetX = Math.max(0, Math.min(canvas.width - player.w, player.targetX));
     }
 
     canvas.addEventListener("touchstart", (e) => {
       if (!gameStarted || gameIsOver) return;
       const touch = e.touches[0];
       e.preventDefault();
-      movePlayerToTouch(touch.clientX);
+      setPlayerTarget(touch.clientX);
     }, { passive: false });
 
     canvas.addEventListener("touchmove", (e) => {
       if (!gameStarted || gameIsOver) return;
       const touch = e.touches[0];
       e.preventDefault();
-      movePlayerToTouch(touch.clientX);
+      setPlayerTarget(touch.clientX);
     }, { passive: false });
+
+    canvas.addEventListener("click", (e) => {
+      if (!gameStarted || gameIsOver) return;
+      setPlayerTarget(e.clientX);
+    });
 
     shootBtn.addEventListener("touchstart", (e) => {
       e.preventDefault();
@@ -549,6 +584,7 @@
           await addDoc(collection(db, "scores"), {
             name,
             score,
+            level,
             createdAt: Date.now()
           });
         }
@@ -573,32 +609,36 @@
         let entries = [];
 
         if (leaderboardEnabled && db) {
-          const q = query(
-            collection(db, "scores"),
-            orderBy("score", "desc"),
-            limit(10)
-          );
-          const snap = await getDocs(q);
+          const snap = await getDocs(collection(db, "scores"));
           snap.forEach((doc) => entries.push(doc.data()));
+
+          entries.sort((a, b) => {
+            const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+            if (scoreDiff !== 0) return scoreDiff;
+            return Number(b.level || 0) - Number(a.level || 0);
+          });
+
+          entries = entries.slice(0, 10);
         } else {
-          entries = [{ name: "Firebase saknas", score: 0 }];
+          entries = [{ name: "Firebase saknas", level: 0, score: 0 }];
         }
 
         if (entries.length === 0) {
-          leaderboardList.innerHTML = "<li><span>Inga poäng ännu</span><span>0</span></li>";
+          leaderboardList.innerHTML = "<li><span>Inga poäng ännu</span><span>Lv 0</span><span>0</span></li>";
           return;
         }
 
         entries.forEach((entry, index) => {
           const li = document.createElement("li");
           const safeName = String(entry.name || "Anon");
+          const safeLevel = Number(entry.level || 0);
           const safeScore = Number(entry.score || 0);
-          li.innerHTML = `<span>${index + 1}. ${safeName}</span><span>${safeScore}</span>`;
+          li.innerHTML = `<span>${index + 1}. ${safeName}</span><span>Lv ${safeLevel}</span><span>${safeScore}</span>`;
           leaderboardList.appendChild(li);
         });
       } catch (err) {
         console.error(err);
-        leaderboardList.innerHTML = "<li><span>Kunde inte läsa topplistan</span><span>!</span></li>";
+        leaderboardList.innerHTML = "<li><span>Kunde inte läsa topplistan</span><span>Lv ?</span><span>!</span></li>";
       }
     }
 
@@ -613,15 +653,29 @@
       }
     }
 
+    function movePlayerTowardTarget() {
+      const diff = player.targetX - player.x;
+      const maxMove = player.speed;
+
+      if (Math.abs(diff) <= maxMove) {
+        player.x = player.targetX;
+      } else {
+        player.x += Math.sign(diff) * maxMove;
+      }
+
+      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+    }
+
     function update() {
       if (!gameStarted || gameIsOver) return;
 
       if (fireCooldown > 0) fireCooldown--;
       if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - 0.08);
 
-      if (moveLeft) player.x -= 5;
-      if (moveRight) player.x += 5;
-      player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+      if (moveLeft) player.targetX -= player.speed * 3;
+      if (moveRight) player.targetX += player.speed * 3;
+      player.targetX = Math.max(0, Math.min(canvas.width - player.w, player.targetX));
+      movePlayerTowardTarget();
 
       for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed;
@@ -656,15 +710,17 @@
 
       if (boss) {
         boss.x += boss.dx;
+        boss.dyPhase += 0.03;
+        boss.y = boss.baseY + Math.sin(boss.dyPhase) * 22;
+
         if (boss.x <= 8 || boss.x + boss.w >= canvas.width - 8) {
           boss.dx *= -1;
-          boss.y += 8;
         }
 
         bossShotCooldown--;
         if (bossShotCooldown <= 0) {
           bossShoot();
-          bossShotCooldown = Math.max(55, 95 - level * 2);
+          bossShotCooldown = Math.max(48, 84 - level * 2);
         }
 
         if (boss.y + boss.h >= player.y + 8) {
@@ -686,7 +742,7 @@
             playBossHitSound();
 
             if (boss.hp <= 0) {
-              score += 150 + level * 20;
+              score += 300;
               boss = null;
               level++;
               createWave();
@@ -787,9 +843,9 @@
       if (!boss) return;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.font = "12px 'Press Start 2P'";
+      ctx.font = "16px 'Press Start 2P'";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(`${boss.hp} träffar kvar`, boss.x + boss.w / 2, boss.y - 24);
+      ctx.fillText(`${boss.hp}`, boss.x + boss.w / 2, boss.y - 22);
     }
 
     function draw() {
@@ -821,7 +877,6 @@
       ctx.fillText(`${score}`, canvas.width / 2, 18);
 
       drawLives();
-
       drawControlArea();
 
       ctx.textAlign = "left";
@@ -837,7 +892,13 @@
       for (const bomb of bombs) {
         ctx.fillStyle = bomb.type === "boss" ? "#ff2e88" : "#ff5f57";
         ctx.beginPath();
-        ctx.arc(bomb.x + bomb.w / 2, bomb.y + bomb.h / 2, bomb.type === "boss" ? 6 : 5, 0, Math.PI * 2);
+        ctx.arc(
+          bomb.x + bomb.w / 2,
+          bomb.y + bomb.h / 2,
+          bomb.type === "boss" ? 6 : 5,
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
       }
 
