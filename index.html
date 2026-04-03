@@ -6,6 +6,8 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Pete Invaders</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
@@ -13,6 +15,8 @@
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     html, body {
@@ -21,7 +25,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at top, #13203f 0%, #081020 60%, #03060d 100%);
+      background: radial-gradient(circle at top, #142348 0%, #081221 58%, #03060d 100%);
       font-family: 'Press Start 2P', cursive;
       touch-action: manipulation;
       overscroll-behavior: none;
@@ -36,6 +40,7 @@
       display: block;
       width: 100vw;
       height: 100vh;
+      touch-action: none;
     }
 
     #topBar {
@@ -50,7 +55,7 @@
     }
 
     #titleBadge {
-      color: #fff5af;
+      color: #fff7b7;
       font-size: 14px;
       text-shadow: 0 0 10px rgba(255, 208, 0, 0.7), 0 0 18px rgba(255, 119, 0, 0.55);
     }
@@ -68,8 +73,6 @@
       font-size: 30px;
       box-shadow: 0 0 22px rgba(255,140,0,0.45);
       z-index: 15;
-      user-select: none;
-      -webkit-user-select: none;
       touch-action: manipulation;
     }
 
@@ -86,7 +89,7 @@
       justify-content: center;
       padding: 24px;
       z-index: 20;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.82);
     }
 
     #gameOverOverlay {
@@ -136,22 +139,6 @@
       background: linear-gradient(180deg, #48d97d 0%, #19884e 100%);
       box-shadow: 0 0 18px rgba(72,217,125,0.25);
     }
-
-    #swipeHint {
-      position: fixed;
-      left: 14px;
-      bottom: calc(18px + env(safe-area-inset-bottom));
-      z-index: 10;
-      color: rgba(255,255,255,0.9);
-      font-size: 9px;
-      line-height: 1.8;
-      background: rgba(5, 10, 20, 0.5);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 10px 12px;
-      max-width: 48vw;
-      pointer-events: none;
-    }
   </style>
 </head>
 <body>
@@ -162,17 +149,14 @@
 
   <canvas id="game"></canvas>
 
-  <div id="swipeHint">↔️ Dra med fingret<br>🔥 Tryck för att skjuta</div>
-
   <button id="shootBtn" aria-label="Skjut">🔥</button>
 
   <div id="startOverlay">
     <div class="card">
       <h1>🚀 Pete Invaders</h1>
       <p>
-        Dra med fingret åt vänster och höger för att styra.<br>
-        Tryck på eldknappen för att skjuta.<br>
-        Tryck på start för att slå på ljud och försöka hålla skärmen vaken.
+        Dra fingret över skärmen för att styra.<br>
+        Tryck på eldknappen för att skjuta.
       </p>
       <button id="startBtn">Starta spelet</button>
     </div>
@@ -206,7 +190,7 @@
 
     window.addEventListener("resize", resizeCanvas);
 
-    // Förhindra oönskad zoom så gott det går på iPhone
+    // Minska oönskad zoom
     let lastTouchEnd = 0;
     document.addEventListener("touchend", function (event) {
       const now = Date.now();
@@ -273,18 +257,19 @@
     let lives = 3;
     let level = 1;
     let fireCooldown = 0;
+    let bombCooldown = 80;
 
     const player = {
       x: 160,
       y: 500,
       w: 48,
       h: 48,
-      speed: 1,
       emoji: "😄"
     };
 
     let bullets = [];
     let enemies = [];
+    let bombs = [];
     let stars = [];
 
     const enemyChoices = ["👾", "🛸", "🤖", "🦄", "🐙", "🍓", "💜", "💚", "💙", "❤️", "🌈"];
@@ -342,32 +327,44 @@
       fireCooldown = 10;
     }
 
-    // Swipe-styrning
-    let touching = false;
-    let touchStartX = 0;
+    function dropBomb() {
+      if (enemies.length === 0) return;
+
+      const shooter = enemies[Math.floor(Math.random() * enemies.length)];
+      bombs.push({
+        x: shooter.x + shooter.size / 2 - 3,
+        y: shooter.y + shooter.size - 2,
+        w: 6,
+        h: 14,
+        speed: Math.min(2 + level * 0.2, 5.5)
+      });
+    }
+
+    // Direktstyrning med fingret:
+    // fingrets x-position styr skeppets centrum direkt
+    function movePlayerToTouch(touchX) {
+      const playAreaRight = canvas.width - 110; // lämna plats för skjutknappen
+      const clampedX = Math.max(0, Math.min(playAreaRight, touchX));
+      player.x = clampedX - player.w / 2;
+      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+    }
 
     canvas.addEventListener("touchstart", (e) => {
       if (!gameStarted || gameIsOver) return;
       const touch = e.touches[0];
-      touching = true;
-      touchStartX = touch.clientX;
+      if (touch.clientX < canvas.width - 110) {
+        e.preventDefault();
+        movePlayerToTouch(touch.clientX);
+      }
     }, { passive: false });
 
     canvas.addEventListener("touchmove", (e) => {
       if (!gameStarted || gameIsOver) return;
-      e.preventDefault();
-
       const touch = e.touches[0];
-      const deltaX = touch.clientX - touchStartX;
-
-      player.x += deltaX * 0.42;
-      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
-
-      touchStartX = touch.clientX;
-    }, { passive: false });
-
-    canvas.addEventListener("touchend", () => {
-      touching = false;
+      if (touch.clientX < canvas.width - 110) {
+        e.preventDefault();
+        movePlayerToTouch(touch.clientX);
+      }
     }, { passive: false });
 
     shootBtn.addEventListener("touchstart", (e) => {
@@ -405,13 +402,12 @@
         }
         await requestWakeLock();
         startMusic();
-        gameStarted = true;
-        startOverlay.style.display = "none";
       } catch (err) {
         console.log(err);
-        gameStarted = true;
-        startOverlay.style.display = "none";
       }
+
+      gameStarted = true;
+      startOverlay.style.display = "none";
     });
 
     restartBtn.addEventListener("click", () => {
@@ -430,6 +426,28 @@
       for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed;
         if (bullets[i].y + bullets[i].h < 0) bullets.splice(i, 1);
+      }
+
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        bombs[i].y += bombs[i].speed;
+
+        const b = bombs[i];
+        const hitPlayer =
+          b.x < player.x + player.w &&
+          b.x + b.w > player.x &&
+          b.y < player.y + player.h &&
+          b.y + b.h > player.y;
+
+        if (hitPlayer) {
+          beep(100, 0.12, "sawtooth", 0.05);
+          bombs.splice(i, 1);
+          lives--;
+          continue;
+        }
+
+        if (b.y > canvas.height + 20) {
+          bombs.splice(i, 1);
+        }
       }
 
       for (const star of stars) {
@@ -453,6 +471,15 @@
           enemy.dx *= -1;
           enemy.y += 12;
         }
+      }
+
+      // Bombfrekvens: få i början, fler senare
+      bombCooldown--;
+      if (bombCooldown <= 0) {
+        dropBomb();
+        const minDelay = Math.max(18, 90 - level * 6);
+        const maxDelay = Math.max(40, 150 - level * 7);
+        bombCooldown = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
       }
 
       for (let ei = enemies.length - 1; ei >= 0; ei--) {
@@ -533,6 +560,13 @@
       ctx.fillStyle = "#ffd95a";
       for (const b of bullets) {
         ctx.fillRect(b.x, b.y, b.w, b.h);
+      }
+
+      ctx.fillStyle = "#ff5f57";
+      for (const bomb of bombs) {
+        ctx.beginPath();
+        ctx.arc(bomb.x + bomb.w / 2, bomb.y + bomb.h / 2, 5, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       for (const enemy of enemies) {
