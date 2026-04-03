@@ -369,7 +369,7 @@
       w: 48,
       h: 48,
       emoji: "😄",
-      speed: 1.6
+      speed: 8
     };
 
     let bullets = [];
@@ -426,7 +426,7 @@
         };
 
         bossShotCooldown = Math.max(48, 84 - level * 2);
-        player.speed = currentEnemySpeed * 2;
+        player.speed = currentEnemySpeed * 10;
         return;
       }
 
@@ -440,7 +440,7 @@
       const startY = 92;
 
       currentEnemySpeed = Math.min(normalSpeedForLevel(level), 3.2);
-      player.speed = currentEnemySpeed * 2;
+      player.speed = currentEnemySpeed * 10;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -458,7 +458,6 @@
     function shoot() {
       if (!gameStarted || gameIsOver) return;
       if (fireCooldown > 0) return;
-      if (score <= 0) return;
 
       score -= 1;
       playShootSound();
