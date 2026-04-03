@@ -183,7 +183,7 @@
       <p>
         Tryck eller dra i styrfältet längst ner för att styra.<br>
         Skeppet åker mot din position med begränsad fart.<br>
-        Varje skott kostar 5 poäng.
+        Varje skott kostar 2 poäng.
       </p>
       <button id="startBtn">Starta spelet</button>
     </div>
@@ -426,7 +426,7 @@
           maxHp: bossHpForLevel(level)
         };
 
-        bossShotCooldown = Math.max(35, 65 + Math.floor(Math.random() * 35));
+        bossShotCooldown = 35 + Math.floor(Math.random() * 45);
         player.speed = currentEnemySpeed * 8;
         return;
       }
@@ -460,7 +460,7 @@
       if (!gameStarted || gameIsOver) return;
       if (fireCooldown > 0) return;
 
-      score -= 5;
+      score -= 2;
       playShootSound();
 
       bullets.push({
@@ -653,7 +653,7 @@
       };
 
       lives--;
-      hitFlash = 1;
+      hitFlash = 1.6;
       playPlayerHitSound();
 
       if (lives <= 0) {
@@ -687,7 +687,7 @@
       if (!gameStarted || gameIsOver) return;
 
       if (fireCooldown > 0) fireCooldown--;
-      if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - 0.08);
+      if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - 0.05);
       updateLifeLossAnimation();
 
       if (moveLeft) player.targetX -= player.speed * 3;
@@ -729,11 +729,14 @@
       if (boss) {
         boss.x += boss.dx;
         boss.dyPhase += 0.03;
+
+        const minBossY = 70;
         const maxBossY = canvas.height * 0.5 - boss.h;
-        boss.y = boss.baseY + Math.sin(boss.dyPhase) * Math.max(20, maxBossY - boss.baseY);
+        const amplitude = Math.max(20, (maxBossY - boss.baseY) * 0.9);
+        boss.y = boss.baseY + Math.sin(boss.dyPhase) * amplitude;
 
         if (boss.y > maxBossY) boss.y = maxBossY;
-        if (boss.y < 70) boss.y = 70;
+        if (boss.y < minBossY) boss.y = minBossY;
 
         if (boss.x <= 8 || boss.x + boss.w >= canvas.width - 8) {
           boss.dx *= -1;
@@ -764,7 +767,7 @@
             playBossHitSound();
 
             if (boss.hp <= 0) {
-              score += 300;
+              score += boss.maxHp * 4;
               boss = null;
               level++;
               createWave();
@@ -952,7 +955,7 @@
       }
 
       if (hitFlash > 0) {
-        ctx.fillStyle = `rgba(255,255,255,${hitFlash * 0.85})`;
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(hitFlash * 0.9, 1)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
