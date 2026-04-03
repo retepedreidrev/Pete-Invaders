@@ -220,16 +220,15 @@
     storageBucket: "pete-invaders.firebasestorage.app",
     messagingSenderId: "974343532639",
     appId: "1:974343532639:web:1e27c5b1662408aee32bea",
-    measurementId: "G-EDCYGK29M6"
-  };
-    
+    measurementId: "G-let leaderboardEnabled = false;
     // === FYLL I DIN EGEN FIREBASE-KONFIG 
 
     let db = null;
     let leaderboardEnabled = false;
 
     try {
-      if (firebaseConfig.apiKey !== "BYT_UT") {
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "BYT_UT") {
+
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         leaderboardEnabled = true;
