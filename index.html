@@ -1,540 +1,561 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8" />
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-/>
-<title>Pete Invaders</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <title>Pete Invaders</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
-<style>
-  * {
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-  }
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: radial-gradient(circle at top, #0f1733 0%, #050814 55%, #02030a 100%);
-    font-family: 'Press Start 2P', cursive;
-    touch-action: manipulation;
-    overscroll-behavior: none;
-  }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #13203f 0%, #081020 60%, #03060d 100%);
+      font-family: 'Press Start 2P', cursive;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+    }
 
-  body {
-    position: fixed;
-    inset: 0;
-  }
+    body {
+      position: fixed;
+      inset: 0;
+    }
 
-  canvas {
-    display: block;
-    width: 100vw;
-    height: 100vh;
-  }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
 
-  #hudTop {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-    z-index: 5;
-  }
+    #topBar {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      z-index: 5;
+      pointer-events: none;
+    }
 
-  #titleBadge {
-    color: #fff8c6;
-    text-shadow: 0 0 8px #ffcc33, 0 0 18px #ff7a00;
-    font-size: 14px;
-    text-align: center;
-  }
+    #titleBadge {
+      color: #fff5af;
+      font-size: 14px;
+      text-shadow: 0 0 10px rgba(255, 208, 0, 0.7), 0 0 18px rgba(255, 119, 0, 0.55);
+    }
 
-  #shootBtn {
-    position: fixed;
-    right: 18px;
-    bottom: calc(18px + env(safe-area-inset-bottom));
-    width: 92px;
-    height: 92px;
-    border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.22);
-    background: radial-gradient(circle at 30% 30%, #ffd86b, #ff7b00 70%, #bf3d00 100%);
-    color: white;
-    font-size: 30px;
-    box-shadow: 0 0 20px rgba(255,140,0,0.5);
-    z-index: 10;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
-  }
+    #shootBtn {
+      position: fixed;
+      right: 18px;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.2);
+      background: radial-gradient(circle at 35% 30%, #ffe07a, #ff8c00 70%, #d24a00 100%);
+      color: white;
+      font-size: 30px;
+      box-shadow: 0 0 22px rgba(255,140,0,0.45);
+      z-index: 15;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
 
-  #shootBtn:active {
-    transform: scale(0.96);
-  }
+    #shootBtn:active {
+      transform: scale(0.96);
+    }
 
-  #startOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.78);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    z-index: 20;
-  }
+    #startOverlay,
+    #gameOverOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 20;
+      background: rgba(0,0,0,0.8);
+    }
 
-  #startCard {
-    width: min(92vw, 480px);
-    background: rgba(10,14,30,0.96);
-    border: 2px solid rgba(255,255,255,0.16);
-    border-radius: 18px;
-    padding: 24px 20px;
-    color: white;
-    text-align: center;
-    box-shadow: 0 0 28px rgba(76, 168, 255, 0.24);
-  }
+    #gameOverOverlay {
+      display: none;
+      z-index: 30;
+    }
 
-  #startCard h1 {
-    margin: 0 0 18px;
-    font-size: 18px;
-    color: #fff1a8;
-    line-height: 1.4;
-  }
+    .card {
+      width: min(92vw, 500px);
+      background: rgba(10, 16, 30, 0.96);
+      border: 2px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      padding: 24px 20px;
+      color: white;
+      text-align: center;
+      box-shadow: 0 0 28px rgba(61, 167, 255, 0.22);
+    }
 
-  #startCard p {
-    margin: 0 0 18px;
-    font-size: 10px;
-    line-height: 1.8;
-    color: #d7e8ff;
-  }
+    .card h1, .card h2 {
+      margin-top: 0;
+      line-height: 1.4;
+      font-size: 18px;
+    }
 
-  #startBtn {
-    border: 0;
-    border-radius: 14px;
-    padding: 16px 18px;
-    font-family: inherit;
-    font-size: 12px;
-    color: white;
-    background: linear-gradient(180deg, #34c8ff 0%, #1f6fff 100%);
-    box-shadow: 0 0 18px rgba(52, 200, 255, 0.4);
-  }
+    .card p {
+      font-size: 10px;
+      line-height: 1.9;
+      color: #dce8ff;
+    }
 
-  #gameOverOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.82);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    z-index: 30;
-  }
+    .card button {
+      border: 0;
+      border-radius: 14px;
+      padding: 15px 18px;
+      font-family: inherit;
+      font-size: 11px;
+      color: white;
+      margin-top: 14px;
+    }
 
-  #gameOverCard {
-    width: min(92vw, 480px);
-    background: rgba(20, 12, 30, 0.96);
-    border: 2px solid rgba(255,255,255,0.14);
-    border-radius: 18px;
-    padding: 24px 20px;
-    color: white;
-    text-align: center;
-  }
+    #startBtn {
+      background: linear-gradient(180deg, #34c8ff 0%, #226dff 100%);
+      box-shadow: 0 0 18px rgba(52,200,255,0.35);
+    }
 
-  #gameOverCard h2 {
-    margin-top: 0;
-    color: #ffccda;
-    font-size: 18px;
-  }
+    #restartBtn {
+      background: linear-gradient(180deg, #48d97d 0%, #19884e 100%);
+      box-shadow: 0 0 18px rgba(72,217,125,0.25);
+    }
 
-  #restartBtn {
-    border: 0;
-    border-radius: 14px;
-    padding: 14px 18px;
-    font-family: inherit;
-    font-size: 11px;
-    color: white;
-    background: linear-gradient(180deg, #47d37b 0%, #188f52 100%);
-    margin-top: 14px;
-  }
-</style>
+    #swipeHint {
+      position: fixed;
+      left: 14px;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 10;
+      color: rgba(255,255,255,0.9);
+      font-size: 9px;
+      line-height: 1.8;
+      background: rgba(5, 10, 20, 0.5);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      max-width: 48vw;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
 
-<div id="hudTop">
-  <div id="titleBadge">PETE INVADERS</div>
-</div>
-
-<canvas id="game"></canvas>
-
-<button id="shootBtn" aria-label="Skjut">🔥</button>
-
-<div id="startOverlay">
-  <div id="startCard">
-    <h1>🚀 Pete Invaders</h1>
-    <p>
-      Luta telefonen för att styra.<br>
-      Tryck på eldknappen för att skjuta.<br>
-      Tryck på start för att aktivera ljud, tilt och hålla skärmen vaken.
-    </p>
-    <button id="startBtn">Starta spelet</button>
+  <div id="topBar">
+    <div id="titleBadge">PETE INVADERS</div>
   </div>
-</div>
 
-<div id="gameOverOverlay">
-  <div id="gameOverCard">
-    <h2>💥 Game Over</h2>
-    <p id="finalScoreText"></p>
-    <button id="restartBtn">Spela igen</button>
+  <canvas id="game"></canvas>
+
+  <div id="swipeHint">↔️ Dra med fingret<br>🔥 Tryck för att skjuta</div>
+
+  <button id="shootBtn" aria-label="Skjut">🔥</button>
+
+  <div id="startOverlay">
+    <div class="card">
+      <h1>🚀 Pete Invaders</h1>
+      <p>
+        Dra med fingret åt vänster och höger för att styra.<br>
+        Tryck på eldknappen för att skjuta.<br>
+        Tryck på start för att slå på ljud och försöka hålla skärmen vaken.
+      </p>
+      <button id="startBtn">Starta spelet</button>
+    </div>
   </div>
-</div>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+  <div id="gameOverOverlay">
+    <div class="card">
+      <h2>💥 Game Over</h2>
+      <p id="finalScoreText"></p>
+      <button id="restartBtn">Spela igen</button>
+    </div>
+  </div>
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  player.y = canvas.height - 110;
-  player.x = Math.max(20, Math.min(canvas.width - player.w - 20, player.x));
-}
-window.addEventListener("resize", resizeCanvas);
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
 
-const startOverlay = document.getElementById("startOverlay");
-const startBtn = document.getElementById("startBtn");
-const shootBtn = document.getElementById("shootBtn");
-const gameOverOverlay = document.getElementById("gameOverOverlay");
-const finalScoreText = document.getElementById("finalScoreText");
-const restartBtn = document.getElementById("restartBtn");
+    const shootBtn = document.getElementById("shootBtn");
+    const startOverlay = document.getElementById("startOverlay");
+    const startBtn = document.getElementById("startBtn");
+    const gameOverOverlay = document.getElementById("gameOverOverlay");
+    const finalScoreText = document.getElementById("finalScoreText");
+    const restartBtn = document.getElementById("restartBtn");
 
-// Ljud
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function beep(freq = 440, duration = 0.08, type = "square", volume = 0.03) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  gain.gain.value = volume;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + duration);
-}
-
-let musicTimer = null;
-function startMusic() {
-  if (musicTimer) return;
-  const notes = [220, 262, 330, 392];
-  let i = 0;
-  musicTimer = setInterval(() => {
-    beep(notes[i % notes.length], 0.09, "triangle", 0.018);
-    i++;
-  }, 420);
-}
-
-// Wake lock
-let wakeLock = null;
-async function requestWakeLock() {
-  try {
-    if ("wakeLock" in navigator) {
-      wakeLock = await navigator.wakeLock.request("screen");
-      wakeLock.addEventListener("release", () => {
-        wakeLock = null;
-      });
-    }
-  } catch (e) {
-    console.log("Wake lock kunde inte aktiveras:", e);
-  }
-}
-
-document.addEventListener("visibilitychange", async () => {
-  if (document.visibilityState === "visible" && gameStarted) {
-    await requestWakeLock();
-  }
-});
-
-// Försök minska oönskad zoom
-document.addEventListener("gesturestart", e => e.preventDefault(), { passive: false });
-document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
-document.addEventListener("touchmove", e => {
-  if (e.scale && e.scale !== 1) e.preventDefault();
-}, { passive: false });
-
-// Speldata
-let gameStarted = false;
-let score = 0;
-let lives = 3;
-let level = 1;
-let fireCooldown = 0;
-let tiltValue = 0;
-let gameIsOver = false;
-
-const player = {
-  x: 160,
-  y: 500,
-  w: 46,
-  h: 46,
-  speed: 5.2,
-  emoji: "😄"
-};
-
-let bullets = [];
-let enemies = [];
-let stars = [];
-
-const enemyChoices = ["🛸", "👾", "🦠", "🪐", "💜", "💚", "💙", "❤️"];
-
-for (let i = 0; i < 80; i++) {
-  stars.push({
-    x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight,
-    r: Math.random() * 2 + 0.5,
-    s: Math.random() * 0.3 + 0.1
-  });
-}
-
-function createWave() {
-  enemies = [];
-  const cols = 7;
-  const rows = 5;
-  const size = 30;
-  const gapX = 12;
-  const gapY = 12;
-  const totalWidth = cols * size + (cols - 1) * gapX;
-  const startX = Math.max(16, (canvas.width - totalWidth) / 2);
-  const startY = 90;
-
-  const baseSpeed = Math.min(1.2 + (level - 1) * 0.18, 2.6);
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      enemies.push({
-        x: startX + col * (size + gapX),
-        y: startY + row * (size + gapY),
-        size,
-        dx: baseSpeed,
-        emoji: enemyChoices[(row + col) % enemyChoices.length]
-      });
-    }
-  }
-}
-
-function shoot() {
-  if (!gameStarted || gameIsOver) return;
-  if (fireCooldown > 0) return;
-
-  beep(820, 0.05, "square", 0.035);
-  bullets.push({
-    x: player.x + player.w / 2,
-    y: player.y + 2,
-    w: 4,
-    h: 14,
-    speed: 8
-  });
-  fireCooldown = 9;
-}
-
-shootBtn.addEventListener("touchstart", e => {
-  e.preventDefault();
-  shoot();
-}, { passive: false });
-
-shootBtn.addEventListener("click", e => {
-  e.preventDefault();
-  shoot();
-});
-
-window.addEventListener("keydown", e => {
-  if (e.key === " ") {
-    e.preventDefault();
-    shoot();
-  }
-  if (e.key === "ArrowLeft") player.x -= 20;
-  if (e.key === "ArrowRight") player.x += 20;
-});
-
-// Tiltstyrning
-function handleOrientation(event) {
-  const gamma = event.gamma ?? 0; // vänster/höger tilt
-  tiltValue = Math.max(-1, Math.min(1, gamma / 25));
-}
-
-async function enableTilt() {
-  if (
-    typeof DeviceOrientationEvent !== "undefined" &&
-    typeof DeviceOrientationEvent.requestPermission === "function"
-  ) {
-    const response = await DeviceOrientationEvent.requestPermission();
-    if (response !== "granted") {
-      throw new Error("Tillstånd nekades för tilt-styrning");
-    }
-  }
-  window.addEventListener("deviceorientation", handleOrientation);
-}
-
-startBtn.addEventListener("click", async () => {
-  try {
-    if (audioCtx.state !== "running") {
-      await audioCtx.resume();
-    }
-    await enableTilt();
-    await requestWakeLock();
-    startMusic();
-    gameStarted = true;
-    startOverlay.style.display = "none";
-  } catch (err) {
-    alert("Kunde inte starta tilt-styrning. Kontrollera att rörelseåtkomst är tillåten på iPhone.");
-    console.error(err);
-  }
-});
-
-restartBtn.addEventListener("click", () => {
-  location.reload();
-});
-
-function update() {
-  if (!gameStarted || gameIsOver) return;
-
-  if (fireCooldown > 0) fireCooldown--;
-
-  player.x += tiltValue * player.speed * 3.2;
-  player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
-
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    bullets[i].y -= bullets[i].speed;
-    if (bullets[i].y + bullets[i].h < 0) bullets.splice(i, 1);
-  }
-
-  for (const star of stars) {
-    star.y += star.s;
-    if (star.y > canvas.height) {
-      star.y = -2;
-      star.x = Math.random() * canvas.width;
-    }
-  }
-
-  let hitEdge = false;
-  for (const enemy of enemies) {
-    enemy.x += enemy.dx;
-    if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) {
-      hitEdge = true;
-    }
-  }
-
-  if (hitEdge) {
-    for (const enemy of enemies) {
-      enemy.dx *= -1;
-      enemy.y += 14;
-    }
-  }
-
-  for (let ei = enemies.length - 1; ei >= 0; ei--) {
-    const enemy = enemies[ei];
-
-    if (enemy.y + enemy.size >= player.y + 8) {
-      lives = 0;
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      player.y = canvas.height - 110;
+      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
     }
 
-    for (let bi = bullets.length - 1; bi >= 0; bi--) {
-      const b = bullets[bi];
-      if (
-        b.x < enemy.x + enemy.size &&
-        b.x + b.w > enemy.x &&
-        b.y < enemy.y + enemy.size &&
-        b.y + b.h > enemy.y
-      ) {
-        beep(140, 0.08, "sawtooth", 0.03);
-        bullets.splice(bi, 1);
-        enemies.splice(ei, 1);
-        score += 10;
-        break;
+    window.addEventListener("resize", resizeCanvas);
+
+    // Förhindra oönskad zoom så gott det går på iPhone
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", function (event) {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+
+    document.addEventListener("gesturestart", e => e.preventDefault(), { passive: false });
+    document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
+    document.addEventListener("touchmove", e => {
+      if (e.scale && e.scale !== 1) e.preventDefault();
+    }, { passive: false });
+
+    // Wake lock
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if ("wakeLock" in navigator) {
+          wakeLock = await navigator.wakeLock.request("screen");
+        }
+      } catch (err) {
+        console.log("Wake lock kunde inte aktiveras:", err);
       }
     }
-  }
 
-  if (enemies.length === 0) {
-    level++;
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && gameStarted) {
+        await requestWakeLock();
+      }
+    });
+
+    // Enkel retro-ljudmotor
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function beep(freq = 440, duration = 0.08, type = "square", volume = 0.03) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.value = volume;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    let musicTimer = null;
+    function startMusic() {
+      if (musicTimer) return;
+      const notes = [220, 262, 330, 392];
+      let i = 0;
+      musicTimer = setInterval(() => {
+        beep(notes[i % notes.length], 0.09, "triangle", 0.015);
+        i++;
+      }, 420);
+    }
+
+    // Speldata
+    let gameStarted = false;
+    let gameIsOver = false;
+    let score = 0;
+    let lives = 3;
+    let level = 1;
+    let fireCooldown = 0;
+
+    const player = {
+      x: 160,
+      y: 500,
+      w: 48,
+      h: 48,
+      speed: 1,
+      emoji: "😄"
+    };
+
+    let bullets = [];
+    let enemies = [];
+    let stars = [];
+
+    const enemyChoices = ["👾", "🛸", "🤖", "🦄", "🐙", "🍓", "💜", "💚", "💙", "❤️", "🌈"];
+
+    for (let i = 0; i < 80; i++) {
+      stars.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 2 + 0.5,
+        s: Math.random() * 0.3 + 0.12
+      });
+    }
+
+    function createWave() {
+      enemies = [];
+
+      const cols = 7;
+      const rows = 5;
+      const size = 30;
+      const gapX = 12;
+      const gapY = 12;
+      const totalWidth = cols * size + (cols - 1) * gapX;
+      const startX = Math.max(14, (canvas.width - totalWidth) / 2);
+      const startY = 90;
+
+      const baseSpeed = Math.min(0.8 + (level - 1) * 0.12, 2.1);
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          enemies.push({
+            x: startX + col * (size + gapX),
+            y: startY + row * (size + gapY),
+            size: size,
+            dx: baseSpeed,
+            emoji: enemyChoices[(row * cols + col) % enemyChoices.length]
+          });
+        }
+      }
+    }
+
+    function shoot() {
+      if (!gameStarted || gameIsOver) return;
+      if (fireCooldown > 0) return;
+
+      beep(820, 0.05, "square", 0.035);
+
+      bullets.push({
+        x: player.x + player.w / 2 - 2,
+        y: player.y + 2,
+        w: 4,
+        h: 14,
+        speed: 8
+      });
+
+      fireCooldown = 10;
+    }
+
+    // Swipe-styrning
+    let touching = false;
+    let touchStartX = 0;
+
+    canvas.addEventListener("touchstart", (e) => {
+      if (!gameStarted || gameIsOver) return;
+      const touch = e.touches[0];
+      touching = true;
+      touchStartX = touch.clientX;
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (!gameStarted || gameIsOver) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartX;
+
+      player.x += deltaX * 0.42;
+      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+
+      touchStartX = touch.clientX;
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", () => {
+      touching = false;
+    }, { passive: false });
+
+    shootBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      shoot();
+    }, { passive: false });
+
+    shootBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      shoot();
+    });
+
+    // Tangentbord på dator
+    let moveLeft = false;
+    let moveRight = false;
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") moveLeft = true;
+      if (e.key === "ArrowRight") moveRight = true;
+      if (e.key === " ") {
+        e.preventDefault();
+        shoot();
+      }
+    });
+
+    document.addEventListener("keyup", e => {
+      if (e.key === "ArrowLeft") moveLeft = false;
+      if (e.key === "ArrowRight") moveRight = false;
+    });
+
+    startBtn.addEventListener("click", async () => {
+      try {
+        if (audioCtx.state !== "running") {
+          await audioCtx.resume();
+        }
+        await requestWakeLock();
+        startMusic();
+        gameStarted = true;
+        startOverlay.style.display = "none";
+      } catch (err) {
+        console.log(err);
+        gameStarted = true;
+        startOverlay.style.display = "none";
+      }
+    });
+
+    restartBtn.addEventListener("click", () => {
+      location.reload();
+    });
+
+    function update() {
+      if (!gameStarted || gameIsOver) return;
+
+      if (fireCooldown > 0) fireCooldown--;
+
+      if (moveLeft) player.x -= 5;
+      if (moveRight) player.x += 5;
+      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y -= bullets[i].speed;
+        if (bullets[i].y + bullets[i].h < 0) bullets.splice(i, 1);
+      }
+
+      for (const star of stars) {
+        star.y += star.s;
+        if (star.y > canvas.height) {
+          star.y = -2;
+          star.x = Math.random() * canvas.width;
+        }
+      }
+
+      let hitEdge = false;
+      for (const enemy of enemies) {
+        enemy.x += enemy.dx;
+        if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) {
+          hitEdge = true;
+        }
+      }
+
+      if (hitEdge) {
+        for (const enemy of enemies) {
+          enemy.dx *= -1;
+          enemy.y += 12;
+        }
+      }
+
+      for (let ei = enemies.length - 1; ei >= 0; ei--) {
+        const enemy = enemies[ei];
+
+        if (enemy.y + enemy.size >= player.y + 8) {
+          lives = 0;
+        }
+
+        for (let bi = bullets.length - 1; bi >= 0; bi--) {
+          const b = bullets[bi];
+          if (
+            b.x < enemy.x + enemy.size &&
+            b.x + b.w > enemy.x &&
+            b.y < enemy.y + enemy.size &&
+            b.y + b.h > enemy.y
+          ) {
+            beep(160, 0.07, "sawtooth", 0.03);
+            bullets.splice(bi, 1);
+            enemies.splice(ei, 1);
+            score += 10;
+            break;
+          }
+        }
+      }
+
+      if (enemies.length === 0) {
+        level++;
+        createWave();
+      }
+
+      if (lives <= 0) {
+        endGame();
+      }
+    }
+
+    function drawHudBox(x, y, w, h) {
+      ctx.fillStyle = "rgba(6, 12, 26, 0.55)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 12);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bg.addColorStop(0, "#102045");
+      bg.addColorStop(0.48, "#091225");
+      bg.addColorStop(1, "#02030a");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (const star of stars) {
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      drawHudBox(12, 44, 210, 96);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "10px 'Press Start 2P'";
+      ctx.fillText(`SCORE ${score}`, 24, 76);
+      ctx.fillText(`LEVEL ${level}`, 24, 102);
+      ctx.fillText(`LIV ${lives}`, 24, 128);
+
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      ctx.font = `${player.h}px serif`;
+      ctx.fillText(player.emoji, player.x, player.y);
+
+      ctx.fillStyle = "#ffd95a";
+      for (const b of bullets) {
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+      }
+
+      for (const enemy of enemies) {
+        ctx.font = `${enemy.size}px serif`;
+        ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+      }
+    }
+
+    function endGame() {
+      gameIsOver = true;
+      finalScoreText.textContent = `Poäng: ${score} • Level: ${level}`;
+      gameOverOverlay.style.display = "flex";
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    resizeCanvas();
     createWave();
-  }
-
-  if (lives <= 0) {
-    endGame();
-  }
-}
-
-function drawRoundedHudBox(x, y, w, h) {
-  ctx.fillStyle = "rgba(8, 12, 28, 0.58)";
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 12);
-  ctx.fill();
-  ctx.stroke();
-}
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  bg.addColorStop(0, "#101a3b");
-  bg.addColorStop(0.45, "#091225");
-  bg.addColorStop(1, "#02030a");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (const star of stars) {
-    ctx.beginPath();
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  drawRoundedHudBox(12, 44, 210, 96);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "10px 'Press Start 2P'";
-  ctx.fillText(`SCORE ${score}`, 24, 76);
-  ctx.fillText(`LEVEL ${level}`, 24, 102);
-  ctx.fillText(`LIV ${lives}`, 24, 128);
-
-  ctx.font = `${player.h}px serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillText(player.emoji, player.x, player.y);
-
-  ctx.fillStyle = "#ffd95a";
-  for (const b of bullets) {
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-  }
-
-  ctx.textBaseline = "top";
-  for (const enemy of enemies) {
-    ctx.font = `${enemy.size}px serif`;
-    ctx.fillText(enemy.emoji, enemy.x, enemy.y);
-  }
-}
-
-function endGame() {
-  gameIsOver = true;
-  finalScoreText.textContent = `Poäng: ${score} • Level: ${level}`;
-  gameOverOverlay.style.display = "flex";
-}
-
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
-resizeCanvas();
-createWave();
-loop();
-</script>
+    loop();
+  </script>
 </body>
 </html>
