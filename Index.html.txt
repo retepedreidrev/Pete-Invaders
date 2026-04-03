@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Invaders Mobile</title>
+
+<style>
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  margin: auto;
+  background: black;
+}
+
+/* Mobil-knappar */
+.controls {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+}
+
+button {
+  font-size: 24px;
+  padding: 20px;
+  border-radius: 50%;
+  border: none;
+  opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="controls">
+  <button id="left">⬅️</button>
+  <button id="shoot">🔥</button>
+  <button id="right">➡️</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Spelare
+const player = {
+  x: canvas.width / 2 - 25,
+  y: canvas.height - 80,
+  w: 50,
+  h: 30,
+  speed: 6
+};
+
+let bullets = [];
+let enemies = [];
+
+let score = 0;
+let lives = 3;
+
+// Input
+let moveLeft = false;
+let moveRight = false;
+
+// Touch-knappar
+document.getElementById("left").ontouchstart = () => moveLeft = true;
+document.getElementById("left").ontouchend = () => moveLeft = false;
+
+document.getElementById("right").ontouchstart = () => moveRight = true;
+document.getElementById("right").ontouchend = () => moveRight = false;
+
+document.getElementById("shoot").ontouchstart = shoot;
+
+// Keyboard
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") moveLeft = true;
+  if (e.key === "ArrowRight") moveRight = true;
+  if (e.key === " ") shoot();
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "ArrowLeft") moveLeft = false;
+  if (e.key === "ArrowRight") moveRight = false;
+});
+
+// Skjut
+function shoot() {
+  bullets.push({
+    x: player.x + player.w/2 - 5,
+    y: player.y,
+    w: 10,
+    h: 20
+  });
+}
+
+// Spawn fiender
+function spawnEnemy() {
+  enemies.push({
+    x: Math.random() * (canvas.width - 40),
+    y: 0,
+    w: 40,
+    h: 30,
+    speed: 2
+  });
+}
+
+let frame = 0;
+
+function update() {
+  if (moveLeft && player.x > 0) player.x -= player.speed;
+  if (moveRight && player.x < canvas.width - player.w) player.x += player.speed;
+
+  bullets.forEach((b, i) => {
+    b.y -= 7;
+    if (b.y < 0) bullets.splice(i, 1);
+  });
+
+  if (frame % 40 === 0) spawnEnemy();
+
+  enemies.forEach((e, ei) => {
+    e.y += e.speed;
+
+    if (e.y > canvas.height) {
+      enemies.splice(ei, 1);
+      lives--;
+      if (lives <= 0) {
+        alert("Game Over! Poäng: " + score);
+        location.reload();
+      }
+    }
+
+    bullets.forEach((b, bi) => {
+      if (
+        b.x < e.x + e.w &&
+        b.x + b.w > e.x &&
+        b.y < e.y + e.h &&
+        b.y + b.h > e.y
+      ) {
+        enemies.splice(ei, 1);
+        bullets.splice(bi, 1);
+        score++;
+      }
+    });
+  });
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Spelare
+  ctx.fillStyle = "white";
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+
+  // Skott
+  bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+  // Fiender
+  ctx.fillStyle = "red";
+  enemies.forEach(e => ctx.fillRect(e.x, e.y, e.w, e.h));
+
+  // UI
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Poäng: " + score, 20, 30);
+  ctx.fillText("Liv: " + lives, 20, 60);
+}
+
+function loop() {
+  frame++;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
