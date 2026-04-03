@@ -25,7 +25,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at top, #142348 0%, #081221 58%, #03060d 100%);
+      background: radial-gradient(circle at top, #13203f 0%, #081020 60%, #03060d 100%);
       font-family: 'Press Start 2P', cursive;
       touch-action: manipulation;
       overscroll-behavior: none;
@@ -43,23 +43,6 @@
       touch-action: none;
     }
 
-    #topBar {
-      position: fixed;
-      top: max(10px, env(safe-area-inset-top));
-      left: 0;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      z-index: 5;
-      pointer-events: none;
-    }
-
-    #titleBadge {
-      color: #fff7b7;
-      font-size: 14px;
-      text-shadow: 0 0 10px rgba(255, 208, 0, 0.7), 0 0 18px rgba(255, 119, 0, 0.55);
-    }
-
     #shootBtn {
       position: fixed;
       right: 18px;
@@ -67,7 +50,7 @@
       width: 92px;
       height: 92px;
       border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.2);
+      border: 3px solid rgba(255,255,255,0.20);
       background: radial-gradient(circle at 35% 30%, #ffe07a, #ff8c00 70%, #d24a00 100%);
       color: white;
       font-size: 30px;
@@ -81,24 +64,25 @@
     }
 
     #startOverlay,
-    #gameOverOverlay {
+    #nameOverlay,
+    #leaderboardOverlay {
       position: fixed;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      z-index: 20;
+      z-index: 30;
       background: rgba(0,0,0,0.82);
     }
 
-    #gameOverOverlay {
+    #nameOverlay,
+    #leaderboardOverlay {
       display: none;
-      z-index: 30;
     }
 
     .card {
-      width: min(92vw, 500px);
+      width: min(92vw, 520px);
       background: rgba(10, 16, 30, 0.96);
       border: 2px solid rgba(255,255,255,0.14);
       border-radius: 18px;
@@ -116,21 +100,24 @@
 
     .card p {
       font-size: 10px;
-      line-height: 1.9;
+      line-height: 1.8;
       color: #dce8ff;
     }
 
-    .card button {
+    .card button, .card input {
+      font-family: inherit;
+    }
+
+    #startBtn, #saveScoreBtn, #restartBtn {
       border: 0;
       border-radius: 14px;
       padding: 15px 18px;
-      font-family: inherit;
       font-size: 11px;
       color: white;
       margin-top: 14px;
     }
 
-    #startBtn {
+    #startBtn, #saveScoreBtn {
       background: linear-gradient(180deg, #34c8ff 0%, #226dff 100%);
       box-shadow: 0 0 18px rgba(52,200,255,0.35);
     }
@@ -139,16 +126,50 @@
       background: linear-gradient(180deg, #48d97d 0%, #19884e 100%);
       box-shadow: 0 0 18px rgba(72,217,125,0.25);
     }
+
+    #playerNameInput {
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: white;
+      font-size: 12px;
+      outline: none;
+      text-align: center;
+    }
+
+    #leaderboardList {
+      list-style: none;
+      margin: 18px 0 0;
+      padding: 0;
+      text-align: left;
+    }
+
+    #leaderboardList li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 10px;
+    }
+
+    #leaderboardList li span:last-child {
+      color: #ffe07a;
+    }
+
+    #loadingText {
+      font-size: 9px;
+      color: #aac8ff;
+      margin-top: 12px;
+      min-height: 14px;
+    }
   </style>
 </head>
 <body>
-
-  <div id="topBar">
-    <div id="titleBadge">PETE INVADERS</div>
-  </div>
-
   <canvas id="game"></canvas>
-
   <button id="shootBtn" aria-label="Skjut">🔥</button>
 
   <div id="startOverlay">
@@ -162,24 +183,73 @@
     </div>
   </div>
 
-  <div id="gameOverOverlay">
+  <div id="nameOverlay">
     <div class="card">
       <h2>💥 Game Over</h2>
       <p id="finalScoreText"></p>
+      <input id="playerNameInput" maxlength="18" placeholder="Skriv ditt namn">
+      <button id="saveScoreBtn">Skicka till topplistan</button>
+      <div id="loadingText"></div>
+    </div>
+  </div>
+
+  <div id="leaderboardOverlay">
+    <div class="card">
+      <h2>🏆 Global Topplista</h2>
+      <ul id="leaderboardList"></ul>
       <button id="restartBtn">Spela igen</button>
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      query,
+      orderBy,
+      limit
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // === FYLL I DIN EGEN FIREBASE-KONFIG HÄR ===
+    const firebaseConfig = {
+      apiKey: "BYT_UT",
+      authDomain: "BYT_UT",
+      projectId: "BYT_UT",
+      storageBucket: "BYT_UT",
+      messagingSenderId: "BYT_UT",
+      appId: "BYT_UT"
+    };
+
+    let db = null;
+    let leaderboardEnabled = false;
+
+    try {
+      if (firebaseConfig.apiKey !== "BYT_UT") {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        leaderboardEnabled = true;
+      }
+    } catch (err) {
+      console.error("Firebase kunde inte starta:", err);
+    }
+
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
 
     const shootBtn = document.getElementById("shootBtn");
     const startOverlay = document.getElementById("startOverlay");
     const startBtn = document.getElementById("startBtn");
-    const gameOverOverlay = document.getElementById("gameOverOverlay");
+    const nameOverlay = document.getElementById("nameOverlay");
+    const leaderboardOverlay = document.getElementById("leaderboardOverlay");
     const finalScoreText = document.getElementById("finalScoreText");
+    const playerNameInput = document.getElementById("playerNameInput");
+    const saveScoreBtn = document.getElementById("saveScoreBtn");
     const restartBtn = document.getElementById("restartBtn");
+    const leaderboardList = document.getElementById("leaderboardList");
+    const loadingText = document.getElementById("loadingText");
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -187,16 +257,13 @@
       player.y = canvas.height - 110;
       player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
     }
-
     window.addEventListener("resize", resizeCanvas);
 
     // Minska oönskad zoom
     let lastTouchEnd = 0;
     document.addEventListener("touchend", function (event) {
       const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
-      }
+      if (now - lastTouchEnd <= 300) event.preventDefault();
       lastTouchEnd = now;
     }, { passive: false });
 
@@ -224,10 +291,10 @@
       }
     });
 
-    // Enkel retro-ljudmotor
+    // Ljud
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    function beep(freq = 440, duration = 0.08, type = "square", volume = 0.03) {
+    function tone(freq = 440, duration = 0.08, type = "square", volume = 0.03, rampDown = true) {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = type;
@@ -236,7 +303,34 @@
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
+
+      if (rampDown) {
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      }
+
       osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playShootSound() {
+      tone(880, 0.04, "square", 0.03);
+      setTimeout(() => tone(620, 0.03, "square", 0.02), 25);
+    }
+
+    function playEnemyHitSound() {
+      tone(180, 0.05, "sawtooth", 0.035);
+      setTimeout(() => tone(120, 0.06, "triangle", 0.025), 35);
+    }
+
+    function playPlayerHitSound() {
+      tone(240, 0.08, "square", 0.05);
+      setTimeout(() => tone(120, 0.12, "sawtooth", 0.04), 40);
+    }
+
+    function playGameOverSound() {
+      tone(260, 0.10, "triangle", 0.05);
+      setTimeout(() => tone(190, 0.12, "triangle", 0.05), 120);
+      setTimeout(() => tone(130, 0.20, "sawtooth", 0.05), 260);
     }
 
     let musicTimer = null;
@@ -245,7 +339,7 @@
       const notes = [220, 262, 330, 392];
       let i = 0;
       musicTimer = setInterval(() => {
-        beep(notes[i % notes.length], 0.09, "triangle", 0.015);
+        tone(notes[i % notes.length], 0.09, "triangle", 0.012);
         i++;
       }, 420);
     }
@@ -257,7 +351,8 @@
     let lives = 3;
     let level = 1;
     let fireCooldown = 0;
-    let bombCooldown = 80;
+    let bombCooldown = 70;
+    let hitFlash = 0;
 
     const player = {
       x: 160,
@@ -272,7 +367,7 @@
     let bombs = [];
     let stars = [];
 
-    const enemyChoices = ["👾", "🛸", "🤖", "🦄", "🐙", "🍓", "💜", "💚", "💙", "❤️", "🌈"];
+    const enemyChoices = ["👾", "🛸", "🤖", "🐙", "💜", "💚", "💙", "❤️", "🌈"];
 
     for (let i = 0; i < 80; i++) {
       stars.push({
@@ -286,23 +381,23 @@
     function createWave() {
       enemies = [];
 
-      const cols = 7;
+      const cols = 8;
       const rows = 5;
       const size = 30;
-      const gapX = 12;
-      const gapY = 12;
+      const gapX = 10;
+      const gapY = 11;
       const totalWidth = cols * size + (cols - 1) * gapX;
-      const startX = Math.max(14, (canvas.width - totalWidth) / 2);
-      const startY = 90;
+      const startX = Math.max(12, (canvas.width - totalWidth) / 2);
+      const startY = 92;
 
-      const baseSpeed = Math.min(0.8 + (level - 1) * 0.12, 2.1);
+      const baseSpeed = Math.min(1.05 + (level - 1) * 0.15, 2.8);
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           enemies.push({
             x: startX + col * (size + gapX),
             y: startY + row * (size + gapY),
-            size: size,
+            size,
             dx: baseSpeed,
             emoji: enemyChoices[(row * cols + col) % enemyChoices.length]
           });
@@ -314,17 +409,17 @@
       if (!gameStarted || gameIsOver) return;
       if (fireCooldown > 0) return;
 
-      beep(820, 0.05, "square", 0.035);
+      playShootSound();
 
       bullets.push({
         x: player.x + player.w / 2 - 2,
         y: player.y + 2,
         w: 4,
         h: 14,
-        speed: 8
+        speed: 8.6
       });
 
-      fireCooldown = 10;
+      fireCooldown = 8;
     }
 
     function dropBomb() {
@@ -332,18 +427,16 @@
 
       const shooter = enemies[Math.floor(Math.random() * enemies.length)];
       bombs.push({
-        x: shooter.x + shooter.size / 2 - 3,
+        x: shooter.x + shooter.size / 2 - 4,
         y: shooter.y + shooter.size - 2,
-        w: 6,
-        h: 14,
-        speed: Math.min(2 + level * 0.2, 5.5)
+        w: 8,
+        h: 16,
+        speed: Math.min(2.4 + level * 0.28, 6.2)
       });
     }
 
-    // Direktstyrning med fingret:
-    // fingrets x-position styr skeppets centrum direkt
     function movePlayerToTouch(touchX) {
-      const playAreaRight = canvas.width - 110; // lämna plats för skjutknappen
+      const playAreaRight = canvas.width - 110;
       const clampedX = Math.max(0, Math.min(playAreaRight, touchX));
       player.x = clampedX - player.w / 2;
       player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
@@ -377,7 +470,6 @@
       shoot();
     });
 
-    // Tangentbord på dator
     let moveLeft = false;
     let moveRight = false;
 
@@ -410,17 +502,91 @@
       startOverlay.style.display = "none";
     });
 
+    saveScoreBtn.addEventListener("click", async () => {
+      const name = (playerNameInput.value || "").trim().slice(0, 18) || "Anon";
+      localStorage.setItem("peteInvadersName", name);
+      loadingText.textContent = "Sparar poäng...";
+
+      try {
+        if (leaderboardEnabled && db) {
+          await addDoc(collection(db, "scores"), {
+            name,
+            score,
+            createdAt: Date.now()
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        loadingText.textContent = "Kunde inte spara poängen.";
+      }
+
+      await showLeaderboard();
+    });
+
     restartBtn.addEventListener("click", () => {
       location.reload();
     });
+
+    async function showLeaderboard() {
+      leaderboardList.innerHTML = "";
+      nameOverlay.style.display = "none";
+      leaderboardOverlay.style.display = "flex";
+
+      try {
+        let entries = [];
+
+        if (leaderboardEnabled && db) {
+          const q = query(
+            collection(db, "scores"),
+            orderBy("score", "desc"),
+            limit(10)
+          );
+          const snap = await getDocs(q);
+          snap.forEach((doc) => {
+            entries.push(doc.data());
+          });
+        } else {
+          entries = [{ name: "Firebase saknas", score: 0 }];
+        }
+
+        if (entries.length === 0) {
+          leaderboardList.innerHTML = "<li><span>Inga poäng ännu</span><span>0</span></li>";
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          const li = document.createElement("li");
+          const safeName = String(entry.name || "Anon");
+          const safeScore = Number(entry.score || 0);
+          li.innerHTML = `<span>${index + 1}. ${safeName}</span><span>${safeScore}</span>`;
+          leaderboardList.appendChild(li);
+        });
+      } catch (err) {
+        console.error(err);
+        leaderboardList.innerHTML = "<li><span>Kunde inte läsa topplistan</span><span>!</span></li>";
+      }
+    }
+
+    function loseLife() {
+      if (gameIsOver) return;
+      lives--;
+      hitFlash = 1;
+      playPlayerHitSound();
+      bombs = bombs.filter(b => b.y < canvas.height + 30);
+
+      if (lives <= 0) {
+        endGame();
+      }
+    }
 
     function update() {
       if (!gameStarted || gameIsOver) return;
 
       if (fireCooldown > 0) fireCooldown--;
+      if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - 0.08);
 
-      if (moveLeft) player.x -= 5;
-      if (moveRight) player.x += 5;
+      if (moveLeft) player.x -= 5.6;
+      if (moveRight) player.x += 5.6;
       player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
 
       for (let i = bullets.length - 1; i >= 0; i--) {
@@ -439,15 +605,12 @@
           b.y + b.h > player.y;
 
         if (hitPlayer) {
-          beep(100, 0.12, "sawtooth", 0.05);
           bombs.splice(i, 1);
-          lives--;
+          loseLife();
           continue;
         }
 
-        if (b.y > canvas.height + 20) {
-          bombs.splice(i, 1);
-        }
+        if (b.y > canvas.height + 20) bombs.splice(i, 1);
       }
 
       for (const star of stars) {
@@ -461,24 +624,24 @@
       let hitEdge = false;
       for (const enemy of enemies) {
         enemy.x += enemy.dx;
-        if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) {
-          hitEdge = true;
-        }
+        if (enemy.x <= 8 || enemy.x + enemy.size >= canvas.width - 8) hitEdge = true;
       }
 
       if (hitEdge) {
         for (const enemy of enemies) {
           enemy.dx *= -1;
-          enemy.y += 12;
+          enemy.y += 14;
         }
       }
 
-      // Bombfrekvens: få i början, fler senare
       bombCooldown--;
       if (bombCooldown <= 0) {
         dropBomb();
-        const minDelay = Math.max(18, 90 - level * 6);
-        const maxDelay = Math.max(40, 150 - level * 7);
+        if (level >= 3 && Math.random() < 0.25) dropBomb();
+        if (level >= 5 && Math.random() < 0.22) dropBomb();
+
+        const minDelay = Math.max(12, 72 - level * 5);
+        const maxDelay = Math.max(28, 118 - level * 6);
         bombCooldown = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
       }
 
@@ -487,6 +650,8 @@
 
         if (enemy.y + enemy.size >= player.y + 8) {
           lives = 0;
+          endGame();
+          return;
         }
 
         for (let bi = bullets.length - 1; bi >= 0; bi--) {
@@ -497,7 +662,7 @@
             b.y < enemy.y + enemy.size &&
             b.y + b.h > enemy.y
           ) {
-            beep(160, 0.07, "sawtooth", 0.03);
+            playEnemyHitSound();
             bullets.splice(bi, 1);
             enemies.splice(ei, 1);
             score += 10;
@@ -510,20 +675,18 @@
         level++;
         createWave();
       }
-
-      if (lives <= 0) {
-        endGame();
-      }
     }
 
-    function drawHudBox(x, y, w, h) {
-      ctx.fillStyle = "rgba(6, 12, 26, 0.55)";
-      ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, 12);
-      ctx.fill();
-      ctx.stroke();
+    function drawLives() {
+      const icon = "🚀";
+      const spacing = 30;
+      const startX = canvas.width - 20 - (lives * spacing);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.font = "22px serif";
+      for (let i = 0; i < lives; i++) {
+        ctx.fillText(icon, startX + i * spacing, 20);
+      }
     }
 
     function draw() {
@@ -543,25 +706,35 @@
         ctx.fill();
       }
 
-      drawHudBox(12, 44, 210, 96);
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "10px 'Press Start 2P'";
-      ctx.fillText(`SCORE ${score}`, 24, 76);
-      ctx.fillText(`LEVEL ${level}`, 24, 102);
-      ctx.fillText(`LIV ${lives}`, 24, 128);
-
+      // Nivå vänster
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "12px 'Press Start 2P'";
+      ctx.fillText(`LEVEL ${level}`, 16, 22);
 
+      // Poäng mitten
+      ctx.textAlign = "center";
+      ctx.font = "18px 'Press Start 2P'";
+      ctx.fillStyle = "#fff7b7";
+      ctx.fillText(`${score}`, canvas.width / 2, 20);
+
+      // Liv höger
+      drawLives();
+
+      // Spelare
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
       ctx.font = `${player.h}px serif`;
       ctx.fillText(player.emoji, player.x, player.y);
 
+      // Skott
       ctx.fillStyle = "#ffd95a";
       for (const b of bullets) {
         ctx.fillRect(b.x, b.y, b.w, b.h);
       }
 
+      // Bomber
       ctx.fillStyle = "#ff5f57";
       for (const bomb of bombs) {
         ctx.beginPath();
@@ -569,16 +742,29 @@
         ctx.fill();
       }
 
+      // Fiender
       for (const enemy of enemies) {
         ctx.font = `${enemy.size}px serif`;
         ctx.fillText(enemy.emoji, enemy.x, enemy.y);
       }
+
+      // Träff-flash
+      if (hitFlash > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${hitFlash * 0.85})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
     }
 
     function endGame() {
+      if (gameIsOver) return;
       gameIsOver = true;
+      playGameOverSound();
       finalScoreText.textContent = `Poäng: ${score} • Level: ${level}`;
-      gameOverOverlay.style.display = "flex";
+      playerNameInput.value = localStorage.getItem("peteInvadersName") || "";
+      loadingText.textContent = leaderboardEnabled
+        ? "Skriv namn och skicka poängen."
+        : "Fyll i Firebase-konfigurationen för global topplista.";
+      nameOverlay.style.display = "flex";
     }
 
     function loop() {
